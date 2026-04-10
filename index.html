@@ -154,30 +154,47 @@ a{color:var(--gold);text-decoration:none}
 // ============================================================
 // DATA
 // ============================================================
-const DIMS = ['St1','St2','St3','Ec1','Ec2','Ec3','Tf1','Tf2','Tf3','Me1','Me2','Me3','Sy1','Sy2','Sy3'];
-const DIM_NAMES = {
-  St1:'大局观',St2:'风险偏好',St3:'适应性',
-  Ec1:'贪婪度',Ec2:'效率感',Ec3:'投资倾向',
-  Tf1:'战斗角色',Tf2:'目标意识',Tf3:'抗压性',
-  Me1:'抗挫折',Me2:'沟通倾向',Me3:'责任归因',
-  Sy1:'英雄池',Sy2:'胜负心',Sy3:'团队倾向'
-};
-const DIM_LOW = {
-  St1:'只看自己这路',St2:'稳如老狗',St3:'固定套路',
-  Ec1:'资源让给队伍',Ec2:'经常空转',Ec3:'优先团队道具',
-  Tf1:'等队友先上',Tf2:'谁近打谁',Tf3:'一乱就慌',
-  Me1:'逆风就崩',Me2:'全程静音',Me3:'都是我的问题',
-  Sy1:'只玩几个英雄',Sy2:'开心就好',Sy3:'独狼带线'
-};
-const DIM_HIGH = {
-  St1:'全图尽在掌握',St2:'莽就完事了',St3:'随机应变',
-  Ec1:'全图资源都是我的',Ec2:'每秒都在创造价值',Ec3:'优先个人装备',
-  Tf1:'我就是开团信号',Tf2:'不杀后排不罢休',Tf3:'乱战之王',
-  Me1:'逆风翻盘才是Dota',Me2:'全程指挥',Me3:'都是队友的锅',
-  Sy1:'什么都能来一手',Sy2:'赢才是一切',Sy3:'必须抱团'
-};
+// ---- Core Modeling Config ----
+const MODELS = [
+  {id:'St',name:'战略',icon:'🗺️',dims:[
+    {id:'St1',name:'大局观',low:'只看自己这路',high:'全图尽在掌握'},
+    {id:'St2',name:'风险偏好',low:'稳如老狗',high:'莽就完事了'},
+    {id:'St3',name:'适应性',low:'固定套路',high:'随机应变'},
+  ]},
+  {id:'Ec',name:'资源',icon:'💰',dims:[
+    {id:'Ec1',name:'贪婪度',low:'资源让给队伍',high:'全图资源都是我的'},
+    {id:'Ec2',name:'效率感',low:'经常空转',high:'每秒都在创造价值'},
+    {id:'Ec3',name:'投资倾向',low:'优先团队道具',high:'优先个人装备'},
+  ]},
+  {id:'Tf',name:'团战',icon:'⚔️',dims:[
+    {id:'Tf1',name:'战斗角色',low:'等队友先上',high:'我就是开团信号'},
+    {id:'Tf2',name:'目标意识',low:'谁近打谁',high:'不杀后排不罢休'},
+    {id:'Tf3',name:'抗压性',low:'一乱就慌',high:'乱战之王'},
+  ]},
+  {id:'Me',name:'心态',icon:'🧠',dims:[
+    {id:'Me1',name:'抗挫折',low:'逆风就崩',high:'逆风翻盘才是Dota'},
+    {id:'Me2',name:'沟通倾向',low:'全程静音',high:'全程指挥'},
+    {id:'Me3',name:'责任归因',low:'都是我的问题',high:'都是队友的锅'},
+  ]},
+  {id:'Sy',name:'风格',icon:'🎭',dims:[
+    {id:'Sy1',name:'英雄池',low:'只玩几个英雄',high:'什么都能来一手'},
+    {id:'Sy2',name:'胜负心',low:'开心就好',high:'赢才是一切'},
+    {id:'Sy3',name:'团队倾向',low:'独狼带线',high:'必须抱团'},
+  ]},
+];
+const QUESTIONS_PER_DIM = 2;
+const SCORE_RANGE = {min:1, max:3};
+const LEVEL_COUNT = 3;
 
-const CATEGORIES = {St:'🗺️ 战略',Ec:'💰 资源',Tf:'⚔️ 团战',Me:'🧠 心态',Sy:'🎭 风格'};
+// ---- Derived from config (do not edit manually) ----
+const ALL_DIMS = MODELS.flatMap(m=>m.dims);
+const DIMS = ALL_DIMS.map(d=>d.id);
+const DIM_NAMES = Object.fromEntries(ALL_DIMS.map(d=>[d.id,d.name]));
+const DIM_LOW = Object.fromEntries(ALL_DIMS.map(d=>[d.id,d.low]));
+const DIM_HIGH = Object.fromEntries(ALL_DIMS.map(d=>[d.id,d.high]));
+const CATEGORIES = Object.fromEntries(MODELS.map(m=>[m.id,`${m.icon} ${m.name}`]));
+const DIM_SCORE_MIN = QUESTIONS_PER_DIM*SCORE_RANGE.min;
+const DIM_SCORE_MAX = QUESTIONS_PER_DIM*SCORE_RANGE.max;
 
 const questions = [
   // St1 大局观
@@ -448,7 +465,7 @@ function selectOption(idx){
     currentQ++;
     // Check hidden trigger: Sy2 both max (score=6)
     if(currentQ===shuffled.length){
-      if(scores['Sy2']>=6){
+      if(scores['Sy2']>=DIM_SCORE_MAX){
         hiddenTriggered=true;
         renderQuestion();
         return;
@@ -469,10 +486,8 @@ function finishQuiz(){
 // MATCHING
 // ============================================================
 function calcLevel(s){
-  // min 2 max 6 per dim (2 questions each 1-3)
-  if(s<=3) return 1; // L
-  if(s<=4) return 2; // M
-  return 3; // H
+  const bucket=(DIM_SCORE_MAX-DIM_SCORE_MIN)/LEVEL_COUNT;
+  return Math.min(LEVEL_COUNT,Math.floor((s-DIM_SCORE_MIN)/bucket)+1);
 }
 
 function matchTypes(){
@@ -492,7 +507,7 @@ function matchTypes(){
   }
   results.sort((a,b)=>a.dist-b.dist||(b.exact-a.exact));
   const best=results[0], second=results[1];
-  const maxDist=15*4; // 15 dims * max diff^2(4)
+  const maxDist=DIMS.length*(LEVEL_COUNT-1)**2;
   const pct=Math.round((1-best.dist/maxDist)*100);
   const pct2=Math.round((1-second.dist/maxDist)*100);
   return [{code:best.code,pct:Math.max(pct,55)},{code:second.code,pct:Math.max(pct2,40)}];
@@ -507,7 +522,7 @@ function findBest(){
     results.push({code,dist});
   }
   results.sort((a,b)=>a.dist-b.dist);
-  const maxDist=60;
+  const maxDist=DIMS.length*(LEVEL_COUNT-1)**2;
   return {code:results[0].code,pct:Math.max(Math.round((1-results[0].dist/maxDist)*100),45)};
 }
 
@@ -539,17 +554,17 @@ function radarSVG(){
     svg+=`<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="#2a2a35" stroke-width="1"/>`;
   }
   // Data
-  const maxScore=6;
+  const maxScore=DIM_SCORE_MAX;
   let dataPoly='';
   for(let i=0;i<n;i++){
-    const ratio=(scores[dims[i]]||2)/maxScore;
+    const ratio=(scores[dims[i]]||DIM_SCORE_MIN)/maxScore;
     const[x,y]=pt(i,ratio);
     dataPoly+=`${x},${y} `;
   }
   svg+=`<polygon points="${dataPoly}" fill="rgba(212,168,67,0.15)" stroke="#d4a843" stroke-width="2"/>`;
   // Dots & labels
   for(let i=0;i<n;i++){
-    const ratio=(scores[dims[i]]||2)/maxScore;
+    const ratio=(scores[dims[i]]||DIM_SCORE_MIN)/maxScore;
     const[dx,dy]=pt(i,ratio);
     svg+=`<circle cx="${dx}" cy="${dy}" r="3.5" fill="#d4a843"/>`;
     const[lx,ly]=pt(i,1.18);
@@ -608,10 +623,9 @@ function showResult(){
     <div class="radar-wrap">${radarSVG()}</div>
     <div class="dim-details">`;
   DIMS.forEach(d=>{
-    const raw=scores[d]||2;
-    const pct=Math.round((raw/6)*100);
+    const raw=scores[d]||DIM_SCORE_MIN;
+    const pct=Math.round((raw/DIM_SCORE_MAX)*100);
     const color=pct>70?'var(--gold)':pct>40?'var(--blue)':'var(--red)';
-    const levelLabel=raw<=3?DIM_LOW[d]:raw>=5?DIM_HIGH[d]:'中等';
     html+=`<div class="dim-row">
       <span class="dim-label">${DIM_NAMES[d]}</span>
       <div class="dim-bar-bg"><div class="dim-bar-fill" style="width:${pct}%;background:${color}"></div></div>
