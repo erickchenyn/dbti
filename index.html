@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DBTI — Dota2 行为类型测试</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0e0e12;--bg2:#16161d;--bg3:#1e1e28;
+  --red:#c23a2b;--red-dim:#8b2920;--gold:#d4a843;--gold-dim:#9e7e33;
+  --text:#e8e6e3;--text-dim:#8a8a8e;--text-dark:#555;
+  --green:#4caf50;--blue:#5c8ac7;
+}
+html{font-size:16px}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;min-height:100vh;overflow-x:hidden}
+a{color:var(--gold);text-decoration:none}
+
+/* Screens */
+.screen{display:none;min-height:100vh;animation:fadeIn .5s ease}
+.screen.active{display:flex;flex-direction:column;align-items:center}
+@keyframes fadeIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+
+/* Intro */
+#intro{justify-content:center;text-align:center;padding:40px 20px}
+.logo-icon{font-size:80px;margin-bottom:20px;filter:drop-shadow(0 0 30px rgba(194,58,43,.4))}
+#intro h1{font-size:2.4rem;font-weight:800;background:linear-gradient(135deg,var(--gold),var(--red));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:12px}
+#intro .subtitle{color:var(--text-dim);font-size:1rem;line-height:1.6;max-width:400px;margin:0 auto 8px}
+.intro-meta{color:var(--text-dark);font-size:.85rem;margin-bottom:40px}
+.btn{display:inline-block;padding:16px 48px;font-size:1.1rem;font-weight:700;border:none;border-radius:12px;cursor:pointer;transition:all .25s;color:#fff}
+.btn-primary{background:linear-gradient(135deg,var(--red),#d44a3a);box-shadow:0 4px 20px rgba(194,58,43,.35)}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 6px 28px rgba(194,58,43,.5)}
+.btn-primary:active{transform:translateY(0)}
+.intro-footer{margin-top:32px;color:var(--text-dark);font-size:.8rem}
+
+/* Quiz */
+#quiz{padding:20px;max-width:560px;width:100%;margin:0 auto}
+.progress-bar{width:100%;height:4px;background:var(--bg3);border-radius:2px;margin:20px 0 12px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--red),var(--gold));border-radius:2px;transition:width .4s ease}
+.progress-text{text-align:center;font-size:.85rem;color:var(--text-dim);margin-bottom:32px}
+.question-card{animation:slideIn .4s ease}
+@keyframes slideIn{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:translateX(0)}}
+.q-category{display:inline-block;font-size:.75rem;color:var(--gold);background:rgba(212,168,67,.12);padding:4px 12px;border-radius:20px;margin-bottom:16px}
+.q-text{font-size:1.2rem;font-weight:600;line-height:1.6;margin-bottom:28px;min-height:72px}
+.options{display:flex;flex-direction:column;gap:12px}
+.option{background:var(--bg2);border:1.5px solid transparent;border-radius:12px;padding:16px 20px;cursor:pointer;transition:all .2s;font-size:.95rem;line-height:1.5;text-align:left}
+.option:hover{border-color:var(--gold-dim);background:var(--bg3)}
+.option.selected{border-color:var(--gold);background:rgba(212,168,67,.1)}
+
+/* Loading */
+#loading{justify-content:center;text-align:center;padding:40px}
+.loading-icon{font-size:64px;animation:pulse 1.5s ease infinite}
+@keyframes pulse{0%,100%{transform:scale(1);opacity:.8}50%{transform:scale(1.15);opacity:1}}
+#loading h2{margin:24px 0 12px;font-size:1.5rem;color:var(--gold)}
+#loading p{color:var(--text-dim);font-size:.9rem}
+.loading-bar{width:240px;height:6px;background:var(--bg3);border-radius:3px;margin:24px auto;overflow:hidden}
+.loading-bar-fill{height:100%;width:0;background:linear-gradient(90deg,var(--red),var(--gold));border-radius:3px;animation:loadBar 2.5s ease forwards}
+@keyframes loadBar{to{width:100%}}
+
+/* Result */
+#result{padding:32px 20px 60px;max-width:600px;width:100%;margin:0 auto}
+.result-header{text-align:center;margin-bottom:36px}
+.result-badge{display:inline-block;font-size:.8rem;color:var(--gold);background:rgba(212,168,67,.12);padding:6px 16px;border-radius:20px;margin-bottom:16px}
+.result-type{font-size:2.8rem;font-weight:900;background:linear-gradient(135deg,var(--gold),var(--red));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px}
+.result-name{font-size:1.3rem;color:var(--text-dim);margin-bottom:12px}
+.result-match{font-size:1rem;color:var(--gold)}
+.result-quote{text-align:center;font-style:italic;color:var(--text-dim);font-size:1.05rem;padding:20px 24px;background:var(--bg2);border-left:3px solid var(--gold);border-radius:0 12px 12px 0;margin-bottom:36px;line-height:1.6}
+
+.section{margin-bottom:32px}
+.section-title{font-size:1.1rem;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.section-title span{font-size:1.2rem}
+
+.desc-text{color:var(--text-dim);line-height:1.8;font-size:.95rem}
+.desc-text p{margin-bottom:12px}
+
+/* Position cards */
+.pos-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pos-card{background:var(--bg2);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:10px;font-size:.9rem}
+.pos-card.good{border-left:3px solid var(--green)}
+.pos-card.ok{border-left:3px solid var(--gold)}
+.pos-card.bad{border-left:3px solid var(--red)}
+.pos-icon{font-size:1.1rem;flex-shrink:0}
+
+/* Skills */
+.skill-list{list-style:none}
+.skill-list li{padding:10px 16px;background:var(--bg2);border-radius:10px;margin-bottom:8px;font-size:.9rem;line-height:1.5;display:flex;align-items:flex-start;gap:10px}
+.skill-list li .icon{flex-shrink:0;font-size:1rem;margin-top:2px}
+
+/* Radar */
+.radar-wrap{display:flex;justify-content:center;margin-bottom:8px}
+.radar-wrap svg{max-width:380px;width:100%}
+.dim-details{display:grid;grid-template-columns:1fr;gap:6px}
+.dim-row{display:flex;align-items:center;gap:10px;font-size:.85rem;padding:6px 0}
+.dim-label{width:72px;flex-shrink:0;color:var(--text-dim);text-align:right}
+.dim-bar-bg{flex:1;height:8px;background:var(--bg3);border-radius:4px;overflow:hidden}
+.dim-bar-fill{height:100%;border-radius:4px;transition:width .8s ease}
+.dim-val{width:28px;text-align:right;color:var(--gold);font-weight:600;font-size:.8rem}
+
+/* Teammate quote */
+.teammate-quote{background:var(--bg2);border-radius:12px;padding:20px;font-size:.9rem;line-height:1.7;color:var(--text-dim)}
+.teammate-quote .speaker{color:var(--gold);font-weight:600}
+
+/* Sub type */
+.sub-type-card{background:var(--bg2);border-radius:12px;padding:20px;text-align:center}
+.sub-type-card .label{font-size:.85rem;color:var(--text-dim);margin-bottom:8px}
+.sub-type-card .name{font-size:1.4rem;font-weight:700;color:var(--gold)}
+.sub-type-card .tagline{font-size:.9rem;color:var(--text-dim);margin-top:4px}
+
+/* Restart */
+.restart-wrap{text-align:center;margin-top:40px}
+.btn-ghost{background:transparent;border:1.5px solid var(--text-dark);color:var(--text-dim);padding:12px 36px;border-radius:10px;cursor:pointer;font-size:.95rem;transition:all .2s}
+.btn-ghost:hover{border-color:var(--gold);color:var(--gold)}
+
+/* Responsive */
+@media(max-width:480px){
+  #intro h1{font-size:1.8rem}
+  .result-type{font-size:2.2rem}
+  .q-text{font-size:1.05rem}
+  .pos-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- INTRO -->
+<div id="intro" class="screen active">
+  <div class="logo-icon">⚔️</div>
+  <h1>DBTI</h1>
+  <p class="subtitle">Dota2 Behavioral Type Indicator<br>你是什么型的 Dota2 玩家？</p>
+  <p class="intro-meta">30 道题 · 3 分钟 · 20 种玩家类型</p>
+  <button class="btn btn-primary" onclick="startQuiz()">开始测试</button>
+  <p class="intro-footer">仅供娱乐 · 不代表真实水平 · 别拿去喷队友</p>
+</div>
+
+<!-- QUIZ -->
+<div id="quiz" class="screen">
+  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  <div class="progress-text" id="progressText"></div>
+  <div id="questionArea"></div>
+</div>
+
+<!-- LOADING -->
+<div id="loading" class="screen">
+  <div class="loading-icon">🔮</div>
+  <h2>正在分析你的 Dota2 灵魂...</h2>
+  <p>匹配中，请稍候</p>
+  <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+</div>
+
+<!-- RESULT -->
+<div id="result" class="screen"></div>
+
+<script>
+// ============================================================
+// DATA
+// ============================================================
+const DIMS = ['St1','St2','St3','Ec1','Ec2','Ec3','Tf1','Tf2','Tf3','Me1','Me2','Me3','Sy1','Sy2','Sy3'];
+const DIM_NAMES = {
+  St1:'大局观',St2:'风险偏好',St3:'适应性',
+  Ec1:'贪婪度',Ec2:'效率感',Ec3:'投资倾向',
+  Tf1:'战斗角色',Tf2:'目标意识',Tf3:'抗压性',
+  Me1:'抗挫折',Me2:'沟通倾向',Me3:'责任归因',
+  Sy1:'英雄池',Sy2:'胜负心',Sy3:'团队倾向'
+};
+const DIM_LOW = {
+  St1:'只看自己这路',St2:'稳如老狗',St3:'固定套路',
+  Ec1:'资源让给队伍',Ec2:'经常空转',Ec3:'优先团队道具',
+  Tf1:'等队友先上',Tf2:'谁近打谁',Tf3:'一乱就慌',
+  Me1:'逆风就崩',Me2:'全程静音',Me3:'都是我的问题',
+  Sy1:'只玩几个英雄',Sy2:'开心就好',Sy3:'独狼带线'
+};
+const DIM_HIGH = {
+  St1:'全图尽在掌握',St2:'莽就完事了',St3:'随机应变',
+  Ec1:'全图资源都是我的',Ec2:'每秒都在创造价值',Ec3:'优先个人装备',
+  Tf1:'我就是开团信号',Tf2:'不杀后排不罢休',Tf3:'乱战之王',
+  Me1:'逆风翻盘才是Dota',Me2:'全程指挥',Me3:'都是队友的锅',
+  Sy1:'什么都能来一手',Sy2:'赢才是一切',Sy3:'必须抱团'
+};
+
+const CATEGORIES = {St:'🗺️ 战略',Ec:'💰 资源',Tf:'⚔️ 团战',Me:'🧠 心态',Sy:'🎭 风格'};
+
+const questions = [
+  // St1 大局观
+  {dim:'St1',cat:'St',text:'你正在打野，小地图显示中路队友血量在掉。你的第一反应是？',
+   opts:[{t:'继续打完这个野再说',v:1},{t:'看一眼中路情况再决定',v:2},{t:'直接 TP 过去',v:3}]},
+  {dim:'St1',cat:'St',text:'队友在上路被三人包夹，你在下路补刀。你会？',
+   opts:[{t:'继续补刀，去了也是送',v:1},{t:'看看能不能 TP 过去反打',v:2},{t:'马上 TP，同时 ping 其他队友支援',v:3}]},
+  // St2 风险偏好
+  {dim:'St2',cat:'St',text:'对面五人消失了 10 秒，你正在带线推塔。你会？',
+   opts:[{t:'立刻撤退到安全位置',v:1},{t:'再推一波兵，留个技能准备跑',v:2},{t:'他们来了正好，说不定能打',v:3}]},
+  {dim:'St2',cat:'St',text:'你看到对面落单一个英雄，但旁边有战争迷雾。你会？',
+   opts:[{t:'不去，肯定有埋伏',v:1},{t:'小心靠近看看情况',v:2},{t:'直接上去干，犹豫就会败北',v:3}]},
+  // St3 适应性
+  {dim:'St3',cat:'St',text:'你的对线对手换了个克制你的英雄，你会？',
+   opts:[{t:'还是按我的打法来',v:1},{t:'调整一下出装顺序',v:2},{t:'完全改变打法，换线或者改出装路线',v:3}]},
+  {dim:'St3',cat:'St',text:'出装方面，你通常？',
+   opts:[{t:'每把都出差不多的装备',v:1},{t:'核心装固定，小件会变',v:2},{t:'完全看对面阵容和局势决定',v:3}]},
+  // Ec1 贪婪度
+  {dim:'Ec1',cat:'Ec',text:'你是三号位，打完一波团灭对面后。你会去？',
+   opts:[{t:'让大哥去刷，我去做视野推进',v:1},{t:'一起推塔拿目标',v:2},{t:'去刷对面野区，有钱不赚是傻子',v:3}]},
+  {dim:'Ec1',cat:'Ec',text:'队伍大哥在刷野，你看到旁边一波野没人打。你会？',
+   opts:[{t:'不打，让给大哥',v:1},{t:'看大哥会不会来，不来我就打了',v:2},{t:'直接清掉，效率第一',v:3}]},
+  // Ec2 效率感
+  {dim:'Ec2',cat:'Ec',text:'等待复活的 30 秒里，你在干什么？',
+   opts:[{t:'看看手机或者发呆',v:1},{t:'观察一下地图局势',v:2},{t:'规划复活后的行动路线，看哪个野点要刷了',v:3}]},
+  {dim:'Ec2',cat:'Ec',text:'你走路从泉水到线上，路过一个野点。你会？',
+   opts:[{t:'直接走过去，赶路要紧',v:1},{t:'看情况，顺手能打就打',v:2},{t:'必须清掉，不能浪费',v:3}]},
+  // Ec3 投资倾向
+  {dim:'Ec3',cat:'Ec',text:'你是四号位，现在有 2000 块钱。你会？',
+   opts:[{t:'买一组眼和一个烟',v:1},{t:'出个风杖，保命也能控人',v:2},{t:'出我的跳刀，差一点了',v:3}]},
+  {dim:'Ec3',cat:'Ec',text:'团队需要一个机制之杖，但你差 500 块出跳刀。你会？',
+   opts:[{t:'先出机制，团队需要',v:1},{t:'犹豫一下，看哪个更急',v:2},{t:'先出跳刀，有跳刀才能发挥',v:3}]},
+  // Tf1 战斗角色
+  {dim:'Tf1',cat:'Tf',text:'你方准备开团，你是先手英雄。你倾向于？',
+   opts:[{t:'让别人先开我跟上',v:1},{t:'等对面走位失误再开',v:2},{t:'开雾直接跳，犹豫就完了',v:3}]},
+  {dim:'Tf1',cat:'Tf',text:'团战已经开始了，你刚赶到战场边缘。你会？',
+   opts:[{t:'先观察一下局势再进场',v:1},{t:'找个好角度切入',v:2},{t:'直接冲进去，晚了就来不及了',v:3}]},
+  // Tf2 目标意识
+  {dim:'Tf2',cat:'Tf',text:'团战中，对面核心躲在后排输出，前排肉盾在你面前。你会？',
+   opts:[{t:'先打面前的，能打到谁打谁',v:1},{t:'想办法绕过去，但如果绕不了就打前排',v:2},{t:'不惜一切代价绕后切他',v:3}]},
+  {dim:'Tf2',cat:'Tf',text:'打赢团战后，对面还剩一个辅助在跑。你会？',
+   opts:[{t:'算了，去推塔拿目标',v:1},{t:'看距离，近的话追一下',v:2},{t:'追！一个都不能放过',v:3}]},
+  // Tf3 抗压性
+  {dim:'Tf3',cat:'Tf',text:'团战打到一半，技能特效满屏，场面极其混乱。你的状态是？',
+   opts:[{t:'已经不知道自己英雄在哪了',v:1},{t:'有点懵但还能操作',v:2},{t:'越乱我越清醒',v:3}]},
+  {dim:'Tf3',cat:'Tf',text:'你在团战中被先手控住了，BKB 已经好了。你的状态是？',
+   opts:[{t:'慌了，手指不知道按什么',v:1},{t:'等控制结束马上开 BKB',v:2},{t:'控制结束的瞬间已经按好了下一套操作',v:3}]},
+  // Me1 抗挫折
+  {dim:'Me1',cat:'Me',text:'对线期被单杀了两次，对面开始打问号。你的反应是？',
+   opts:[{t:'心态有点崩，开始急躁',v:1},{t:'忍着，猥琐发育等机会',v:2},{t:'无所谓，等我装备起来就是另一个故事',v:3}]},
+  {dim:'Me1',cat:'Me',text:'你们的高地被破了两路，但经济差只有 5000。你觉得？',
+   opts:[{t:'这把没了，15投吧',v:1},{t:'还有机会，但得小心',v:2},{t:'只要高地在就能打，反手一波我都敢想',v:3}]},
+  // Me2 沟通倾向
+  {dim:'Me2',cat:'Me',text:'开局选人阶段，你会做什么？',
+   opts:[{t:'直接选英雄不说话',v:1},{t:'看队友选了什么再决定',v:2},{t:'"我打X位，建议XX阵容配合"',v:3}]},
+  {dim:'Me2',cat:'Me',text:'队友做了一个明显的失误导致团灭。你会？',
+   opts:[{t:'什么都不说',v:1},{t:'简单提醒一下',v:2},{t:'详细分析刚才应该怎么做',v:3}]},
+  // Me3 责任归因
+  {dim:'Me3',cat:'Me',text:'这把输了，复盘的时候你第一反应是？',
+   opts:[{t:'是我哪里没做好',v:1},{t:'大家都有责任吧',v:2},{t:'如果XX不那样做我们就赢了',v:3}]},
+  {dim:'Me3',cat:'Me',text:'队伍 0-10 大劣势，你觉得主要原因是？',
+   opts:[{t:'我应该打得更好',v:1},{t:'阵容有问题，大家也都有失误',v:2},{t:'某个人的问题，太拖了',v:3}]},
+  // Sy1 英雄池
+  {dim:'Sy1',cat:'Sy',text:'新版本你的本命英雄被削了。你会？',
+   opts:[{t:'继续玩，削了也是我的英雄',v:1},{t:'少玩一点，但不会放弃',v:2},{t:'看看版本强势英雄，换一个练',v:3}]},
+  {dim:'Sy1',cat:'Sy',text:'队友说"我们需要一个先手英雄"。你会？',
+   opts:[{t:'我不会玩先手，你们来吧',v:1},{t:'我有一两个能玩的，凑合选一个',v:2},{t:'没问题，我这有好几个选择',v:3}]},
+  // Sy2 胜负心
+  {dim:'Sy2',cat:'Sy',text:'打匹配还是天梯？你更倾向？',
+   opts:[{t:'匹配就好，轻松一点',v:1},{t:'都行，看心情',v:2},{t:'当然天梯，不掉分打什么',v:3}]},
+  {dim:'Sy2',cat:'Sy',text:'连赢三把后你的状态是？',
+   opts:[{t:'见好就收，关机睡觉',v:1},{t:'再打一把看看',v:2},{t:'手感正好，继续冲分！',v:3}]},
+  // Sy3 独狼/团队
+  {dim:'Sy3',cat:'Sy',text:'你的队伍在抱团打架，但你发现下路空了可以偷塔。你会？',
+   opts:[{t:'去偷塔，塔比人头值钱',v:1},{t:'看情况，队伍打得赢我就去偷',v:2},{t:'必须跟团，少一个人打不了',v:3}]},
+  {dim:'Sy3',cat:'Sy',text:'20 分钟了，你觉得理想的打法是？',
+   opts:[{t:'分线带，拉扯对面',v:1},{t:'看阵容决定打还是拖',v:2},{t:'五个人一起走，逮到一个灭一个',v:3}]},
+];
+
+// Hidden question
+const hiddenQ = {dim:'_tilt',cat:'Me',text:'你连输了三把，现在凌晨 2 点了。你会？',
+  opts:[{t:'再来一把！必须赢一把收尾',v:'TILT'},{t:'关机睡觉明天再说',v:'sleep'},{t:'打一把人机找回自信',v:'bot'}]};
+
+// Type definitions: [vector(15), name, tagline, desc, positions, strengths, weaknesses, quote]
+const TYPES = {
+  CARRY:{v:[2,1,2,3,3,3,1,2,2,3,1,2,1,3,1],name:'大哥',tag:'"别急，让我发育到六神装。"',
+    desc:'你是队伍里最沉得住气的人。当队友在前线疯狂互换的时候，你还在野区默默刷着第四件大件。你相信一切问题都能用经济优势解决，而经济优势来自精确地打好每一个补刀。你的 Dota 哲学：不是不想打架，是还没到打架的时候。',
+    pos:[['1号位（天生大哥命）','good'],['2号位（中路发育型）','ok'],['3号位','bad'],['4/5号位（你会忍不住抢补刀）','bad'],['队长BP','ok']],
+    str:['补刀与发育规划','后期团战输出——六神装就是决赛圈','扛住逆风压力默默发育','对装备时间点的精准把握'],
+    weak:['前期打架——"再刷一波再去"','做视野——让你花钱买眼不如杀了你','前期节奏参与度低','牺牲精神不足'],
+    qt:['队友：大哥快来打架了！','你：等我 BKB。','队友：你 BKB 出来了！','你：等我金箍棒。']},
+  GANKER:{v:[3,3,3,2,3,2,3,3,2,2,2,2,2,3,2],name:'节奏王',tag:'"中路不见了，所有人小心。"',
+    desc:'你是全场节奏的发动机。6 级一到你就消失在地图上，让对面每条路都心惊胆战。你享受那种从迷雾中冲出来一套带走的快感。你的存在就是让对面不敢出门补刀，你不在的时候对面也在猜你在不在。',
+    pos:[['2号位（为节奏而生）','good'],['4号位（游走 gank）','good'],['3号位（先手开团）','ok'],['1号位','bad'],['队长BP','ok']],
+    str:['Gank 时机与路线判断','让对面每条路都不安全','利用迷雾和视野差打信息战','将小优势滚成大雪球'],
+    weak:['安静地补 20 分钟刀','对面全缩的局没有目标就焦虑','后期打钱效率不高','有时候太激进导致送掉优势'],
+    qt:['队友：你能不能来下路一趟？','你：已经在路上了。','队友：你刚才不是在上路吗？','你：杀完了，顺路。']},
+  WARD:{v:[3,1,2,1,2,1,1,1,2,2,2,1,2,2,3],name:'眼位大师',tag:'"全图点亮是我存在的意义。"',
+    desc:'你是队伍里最无私的人。你的背包永远装着眼和烟，你记得每一个眼位的最佳时机。你的装备可能永远只有棕色鞋，但队伍的视野从来不会黑。你默默做着最不起眼但最重要的工作。',
+    pos:[['5号位（天选之辅）','good'],['4号位','ok'],['队长BP','good'],['1/2号位（你会忍不住买眼）','bad'],['3号位','bad']],
+    str:['视野布局——全图掌控','资源分配给队伍核心','在贫穷中依然发挥价值','帮队友创造空间'],
+    weak:['打输出——你的攻击像挠痒','抢占资源——看到钱也让给别人','carry 全场——你习惯了当绿叶','个人装备进度永远落后'],
+    qt:['队友：我们没眼了。','你：刚才插了三个你没看地图吧。','队友：辅助怎么还是草鞋？','你：因为钱都变成你的视野了。']},
+  SPLIT:{v:[2,3,2,3,3,3,1,1,2,2,1,2,2,2,1],name:'偷塔狂魔',tag:'"你们打团，我下路三连。"',
+    desc:'你信奉一个真理：拆塔才能赢比赛。当队友在那边 5v5 打得热火朝天的时候，你已经偷偷推掉了两路兵营。你是对面最头疼的人，因为抓你又抓不到，不抓你又在偷家。',
+    pos:[['3号位（分带三号位）','good'],['1号位（后期分推）','ok'],['2号位','ok'],['4/5号位','bad'],['队长BP','bad']],
+    str:['分线带节奏，牵制对面','推进效率极高','逃跑和生存能力','1v1单抓能力'],
+    weak:['团战输出——因为你不在','配合意识——习惯一个人行动','关键团总是缺席','队友打 4v5 的时候压力给到他们'],
+    qt:['队友：能不能来打团？？？','你：等一下，二塔快没了。','队友：人都死完了！','你：但是我推了两路，值。']},
+  CAPTAIN:{v:[3,2,3,2,2,2,2,2,3,3,3,2,3,3,3],name:'指挥官',tag:'"听我的，这波能打。"',
+    desc:'你是天生的场上指挥。从 BP 阶段开始你就在思考阵容配合，开局就规划好每条路的打法。你的麦克风永远开着，队友习惯了听你的指令。赢了是团队努力，输了你第一个反思。',
+    pos:[['队长BP（为此而生）','good'],['5号位（指挥型辅助）','good'],['3号位（团战指挥）','ok'],['2号位','ok'],['1号位（你太想指挥别人了）','bad']],
+    str:['战术规划与实时指挥','BP 选人和阵容设计','团战切入时机判断','团队凝聚力提升'],
+    weak:['安静地打自己的路——做不到','个人操作（想太多手跟不上）','队友不听指挥时的焦虑','有时候过度指挥让队友烦'],
+    qt:['你：上去上去上去！打了打了！','队友：你自己先上啊。','你：我在指挥！','队友：你的英雄在泉水挂机呢。']},
+  TOWER:{v:[1,3,1,2,2,2,3,3,2,2,1,3,1,3,2],name:'越塔战神',tag:'"塔下强杀，不杀不舒服。"',
+    desc:'在你眼里，塔不是保护对面的，是对面以为安全的假象。你专门在塔下强杀那些残血的、以为自己安全的人。成功了你就是全场最亮的星，失败了你就是队友口中的"这人有病"。但你不在乎，因为那一刻太帅了。',
+    pos:[['2号位（Solo kill型）','good'],['3号位（莽夫型）','ok'],['4号位（莽辅）','ok'],['1号位（太浪了）','bad'],['5号位','bad']],
+    str:['越塔时机判断（偶尔）','高风险操作的执行力','给对面心理压力','精彩集锦贡献者'],
+    weak:['稳健——什么是稳健？','计算伤害——凭感觉来','被反杀后的心态管理','死亡次数控制'],
+    qt:['你：我能杀他！','队友：你只有 200 血！','你：够了。','（灰色字幕：XXX 被防御塔击杀）']},
+  FARMER:{v:[1,1,1,3,3,3,1,1,1,2,1,2,1,2,1],name:'打钱机器',tag:'"25 分钟 600 GPM 不过分吧。"',
+    desc:'你和 CARRY 不一样，你不是在等打架的时机，你根本就不想打架。你就想安安静静地补刀、刷野、推线，看着金币数字往上涨。你能在全场最无聊的时刻感到最大的快乐——清掉一波兵线比五杀还让你满足。',
+    pos:[['1号位','good'],['2号位（刷钱中单）','ok'],['3号位','bad'],['4/5号位','bad'],['队长BP','bad']],
+    str:['补刀和刷野效率极高','经济利用率最大化','心无旁骛的专注力','永远不会缺钱'],
+    weak:['打架——浪费打钱时间','看地图——在看补刀呢','支援队友——要跑太远了','团战贡献度不稳定'],
+    qt:['队友：来打架了！','你：等我打完这波野。','队友：都死了！','你：但是我 GPM 全场最高。']},
+  ANCHOR:{v:[2,1,2,2,2,2,2,1,3,3,2,1,2,2,3],name:'定海神针',tag:'"我不会 C 但我不会崩。"',
+    desc:'你可能不是全场最亮眼的那个人，但你是最稳的那个。队伍逆风的时候你从不慌，顺风的时候你也不浪。你是那种队友可以放心交后背的人，因为你永远在该在的位置做该做的事。',
+    pos:[['3号位（稳健三号位）','good'],['5号位','good'],['4号位','ok'],['1号位','ok'],['队长BP','ok']],
+    str:['稳定发挥不崩盘','团战中的可靠站位','心态稳定带动团队','关键时刻不掉链子'],
+    weak:['翻盘——缺少那一点爆发力','个人秀操作——不是你的风格','带节奏——你更擅长跟节奏','精彩集锦离你很远'],
+    qt:['队友：你这把什么感觉？','你：还行，正常打。','队友：我们落后 15000 了。','你：还行，正常打。']},
+  FLEX:{v:[2,2,3,2,2,2,2,2,2,2,2,1,3,2,3],name:'万金油',tag:'"你们随便选，剩什么我玩什么。"',
+    desc:'你的英雄池比对面五个人加起来都宽。需要辅助你能辅助，需要中单你也能来一手。你是队伍的万能胶水，哪里需要补就去哪。你可能什么都会但什么都不精，但队伍有你在，阵容永远不会太难看。',
+    pos:[['任何位置（这就是你的超能力）','good'],['队长BP','good'],['固定某个位置','ok']],
+    str:['英雄池极宽，什么都能玩','适应任何阵容需要','沟通与配合能力强','BP 阶段灵活选人'],
+    weak:['深度不够——样样通样样松','没有招牌英雄','巅峰时刻表现平平','很少有高光操作'],
+    qt:['队友：你打什么位？','你：都行。','队友：那你中呗？','你：行。换下也行。辅助也行。']},
+  SMOKE:{v:[3,3,2,2,3,2,3,3,3,2,3,2,2,3,3],name:'雾中猎手',tag:'"开雾，跟我走。"',
+    desc:'你是黑暗中的猎人。你最享受的时刻不是团战，而是开雾之后、在迷雾中悄悄接近猎物的那段路。你对地图上每一个人的动向都有判断，你知道什么时候该出手，一击必杀。',
+    pos:[['4号位（游走猎人）','good'],['2号位（gank型中单）','good'],['3号位','ok'],['队长BP','good'],['1号位','bad']],
+    str:['开雾 gank 的时机和路线','对敌方走位的预判','团战先手打控制','信息战与心理博弈'],
+    weak:['安心刷钱——你看到人就想杀','对面全缩不出来时无所事事','后期团战正面刚','耐心等待'],
+    qt:['你：买烟了吗？开雾。','队友：我刚才已经跟你开了一次了。','你：再来一次。','队友：烟冷却好了？','你：好了，走。']},
+  FEEDER:{v:[1,3,1,1,1,1,3,2,1,3,2,2,2,1,2],name:'快乐 Dota',tag:'"死亡不过是回城的另一种方式。"',
+    desc:'你打 Dota 只是为了快乐。死了？没关系，省了回城卷轴的钱。0-10？但是我抢到了一个人头很开心。你是全场死亡最多的人，但也可能是笑得最开心的人。你让队友抓狂，但对面也无法预判一个不怕死的人。',
+    pos:[['匹配娱乐局','good'],['4号位（敢死辅助）','ok'],['3号位（肉盾）','ok'],['1号位（别）','bad'],['天梯高分局','bad']],
+    str:['心态永远炸不了','牵制力——对面总想杀你','快乐感染队友','不怕死就是最大的勇气'],
+    weak:['KDA——不存在的','经济效率','团战有效输出','赢比赛（但你不在乎）'],
+    qt:['队友：你怎么又死了？','你：哈哈哈没事没事。','队友：你已经 0-12 了。','你：但这把好好玩啊！']},
+  CLIFF:{v:[2,1,2,2,2,1,1,1,3,3,2,1,1,2,3],name:'高地守护者',tag:'"只要高地不丢就还有机会。"',
+    desc:'你是最坚韧的防守者。当队伍所有人都想投降的时候，你是那个说"再守一波"的人。你相信 Dota 没有必输的局，只要高地还在，只要对面一个失误，你就能翻盘。你的耐心是全场最强的武器。',
+    pos:[['5号位（守护者辅助）','good'],['3号位（高地钉子户）','good'],['队长BP','ok'],['2号位','ok'],['1号位','ok']],
+    str:['防守高地的耐心和技巧','逆风局心态超稳','等待对面犯错的冷静','关键团战的防守反击'],
+    weak:['主动进攻——你更擅长防守','带节奏——你是等节奏的人','顺风推进——总觉得不够稳','对面不犯错的时候有点无计可施'],
+    qt:['队友：投了吧。','你：再守一波。','队友：都 mega 了！','你：再守一波。','（5 分钟后翻盘）']},
+  TOXIC:{v:[2,2,1,2,2,2,2,2,1,1,3,3,2,3,2],name:'键盘侠',tag:'"？？？这也能死？"',
+    desc:'你的键盘比你的鼠标更忙。对线死了？队友的锅。打团输了？也是队友的锅。你永远在打字或者 ping 地图，你的问号键已经磨光了。你觉得自己是全场最清醒的人，但队友觉得你是全场最烦的人。',
+    pos:[['2号位（抱怨型中路）','ok'],['3号位','ok'],['1号位（别让他说话）','bad'],['4/5号位','bad'],['队长BP（只会喷不会指挥）','bad']],
+    str:['发现队友失误的眼力','永远充沛的表达欲','给对面心理压力（maybe）','游戏理解其实不差'],
+    weak:['自己的操作——忙着打字呢','团队氛围——在你手上破裂','被禁言后的表现','心态管理'],
+    qt:['你：？？？','队友：你能不能少打字多操作？','你：如果你们不送我至于打字吗？','队友：我刚举报了你。']},
+  AFK:{v:[1,1,1,1,1,1,1,1,1,1,1,2,1,1,1],name:'挂机侠',tag:'"我在呢，刚才切出去回了个消息。"',
+    desc:'你的 Dota 从来不是全神贯注的——你一边打 Dota 一边看视频、回消息、刷手机。队友喊你打团的时候你在泉水里站着，因为你刚才切出去了。你的英雄经常站在奇怪的地方一动不动，然后突然动了——因为你回来了。',
+    pos:[['任何位置（但请别来天梯）','bad'],['匹配局','ok'],['单机挂机打野','ok']],
+    str:['多任务处理（不是 Dota 的）','心态平和，永远不急','低期望低压力','不会跟队友吵架（因为不在）'],
+    weak:['参与游戏','团战贡献','补刀（人不在怎么补）','队友信任度'],
+    qt:['队友：你在吗？','...','队友：你在吗？？','你：在在在，刚回来。']},
+  TRYHARD:{v:[3,2,3,3,3,2,3,3,3,2,3,3,3,3,2],name:'天梯狂人',tag:'"天梯分就是尊严。"',
+    desc:'你把 Dota 当成竞技运动来打。每一分都是生命值，每一把都是排位赛。你看攻略、背出装、练操作，你比大多数人都认真。你的天梯分就是你的名片，掉分比被骂还难受。',
+    pos:[['任何核心位置','good'],['队长BP','good'],['匹配局（你会不开心）','bad']],
+    str:['游戏理解深度','操作水平在线','英雄池与版本理解','持续进步的动力'],
+    weak:['享受游戏——你太紧绷了','输了之后的心态','面对娱乐队友的容忍度','掉分后的连续作战'],
+    qt:['队友：来匹配吧。','你：不打匹配。','队友：为什么？','你：不加分打什么。']},
+  STACK:{v:[2,2,2,2,2,2,2,2,2,3,3,1,2,2,3],name:'开黑达人',tag:'"单排是不可能单排的。"',
+    desc:'你从来不单排。你的好友列表里有固定的三排、五排阵容，你们有自己的暗号和配合。跟朋友一起玩的快乐比赢比赛还重要，当然你们经常也能赢——因为有配合。',
+    pos:[['固定车队的任何位置','good'],['队长BP（你最懂队友）','good'],['单排','bad']],
+    str:['团队配合与默契','快乐感染力','固定阵容的磨合度','语音沟通效率'],
+    weak:['单排——你不知道怎么跟陌生人玩','没朋友在线就不想打','适应不同队友的打法','一个人的时候战力大减'],
+    qt:['你：今晚开黑吗？','朋友：来来来。','你：三缺二，再拉两个。','（组了 40 分钟队，打了两把就散了）']},
+  PICKER:{v:[3,1,3,2,1,2,1,2,2,2,3,2,3,3,3],name:'BP 大师',tag:'"我虽然不太会玩，但我会 ban。"',
+    desc:'你对版本的理解可能比你的操作水平高两个档次。你知道什么英雄克制什么，什么阵容配什么，什么时候该 ban 什么。BP 阶段你是全场最活跃的人，开打之后……你就正常发挥吧。',
+    pos:[['队长BP（核心价值）','good'],['5号位','ok'],['4号位','ok'],['1/2号位（BP 会了操作跟不上）','bad']],
+    str:['版本理解和英雄克制关系','阵容设计与 Ban 人','赛前准备和研究','战略层面的思考'],
+    weak:['执行力——想法比操作多','操作水平——确实差点','实战经验不足','补刀和微操'],
+    qt:['你：ban 猛犸，选火猫配小鱼人。','队友：你 fire 吗？','你：不会，但你选就行。','队友：……']},
+  COURIER:{v:[2,2,2,1,2,1,2,1,2,3,2,1,2,2,3],name:'快递员',tag:'"我这条命就是给大哥挡刀的。"',
+    desc:'你是队伍里最无私的战士。你的存在就是为了保护核心队友——用命挡技能、用身体探视野、用残血引诱对面。你的死亡是有战术价值的，至少你是这么认为的。你的 KDA 可能很惨，但大哥活着就是你的胜利。',
+    pos:[['5号位（牺牲型辅助）','good'],['4号位','ok'],['3号位（肉盾）','ok'],['1/2号位','bad'],['队长BP','ok']],
+    str:['无私牺牲保护核心','探视野和吸引技能','为大哥创造输出空间','团战中吸收伤害'],
+    weak:['自己活下来','个人战绩','有时牺牲得不值得','经济和等级永远最低'],
+    qt:['大哥：你怎么又死了？','你：我帮你挡了一个技能。','大哥：但那个技能是指向你的。','你：……至少你活着了。']},
+  ROSHAN:{v:[3,2,2,2,3,2,2,2,2,2,3,2,2,3,3],name:'肉山控制者',tag:'"20 分钟必须打肉山。"',
+    desc:'你对肉山有一种执念。每次盾刷新你就开始 ping，你永远知道肉山什么时候该打。在你看来，Dota 的核心不是打架，不是推塔，而是控制肉山。有盾的队伍永远不亏。',
+    pos:[['3号位','good'],['1号位','ok'],['队长BP','good'],['4/5号位','ok'],['2号位','ok']],
+    str:['肉山时机判断','目标导向的打法','团队动员能力','战略资源控制'],
+    weak:['肉山不在的时候不知道干嘛','有时为了肉山放弃更好的选择','被对面抢盾后心态爆炸','除了肉山其他目标优先级混乱'],
+    qt:['你：打肉山。','队友：对面五个都活着。','你：打完再走。','队友：他们来了！','你：先打肉山！']},
+  TILT:{v:[1,3,1,2,1,2,3,2,1,1,2,3,1,3,2],name:'上头哥',tag:'"再来一把！这把一定赢！"',
+    desc:'你的一晚上 Dota 通常是这样的：赢两把，飘了；输一把，不服；再输一把，上头；再输三把，已经凌晨了但必须赢一把才能睡。你的天梯分是坐过山车的——上午冲上去，晚上掉回来。你最大的敌人不是对面，是你自己的心态。',
+    pos:[['任何位置（看心态阶段）','ok'],['上头时别打天梯','bad']],
+    str:['状态好的时候势不可挡','强烈的胜负欲','不服输的精神','爆发力极强'],
+    weak:['心态管理——完全没有','掉分后的理性判断','知道什么时候该停','凌晨 3 点的操作水平'],
+    qt:['你：再来一把。','朋友：你已经输了四把了。','你：这把一定赢。','（输了）','你：最后一把。','（又输了）','你：再最后一把……']},
+};
+
+// ============================================================
+// STATE
+// ============================================================
+let shuffled=[], currentQ=0, scores={}, hiddenTriggered=false, hiddenAnswer=null;
+
+function initScores(){scores={};DIMS.forEach(d=>scores[d]=0)}
+
+// ============================================================
+// SCREENS
+// ============================================================
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+function startQuiz(){
+  initScores();
+  shuffled=[...questions].sort(()=>Math.random()-.5);
+  currentQ=0;hiddenTriggered=false;hiddenAnswer=null;
+  showScreen('quiz');
+  renderQuestion();
+}
+
+function renderQuestion(){
+  const total=shuffled.length+(hiddenTriggered&&currentQ===shuffled.length?1:0);
+  const num=currentQ+1;
+  const isHidden=currentQ>=shuffled.length;
+  const q=isHidden?hiddenQ:shuffled[currentQ];
+  document.getElementById('progressFill').style.width=((currentQ)/shuffled.length*100)+'%';
+  document.getElementById('progressText').textContent=`${Math.min(num,shuffled.length)} / ${shuffled.length}`;
+  const catLabel=CATEGORIES[q.cat]||'';
+  let html=`<div class="question-card">
+    <div class="q-category">${catLabel}${isHidden?' · 隐藏题':''}</div>
+    <div class="q-text">${q.text}</div>
+    <div class="options">`;
+  q.opts.forEach((o,i)=>{
+    html+=`<div class="option" onclick="selectOption(${i})">${o.t}</div>`;
+  });
+  html+=`</div></div>`;
+  document.getElementById('questionArea').innerHTML=html;
+}
+
+function selectOption(idx){
+  const opts=document.querySelectorAll('.option');
+  opts.forEach(o=>o.classList.remove('selected'));
+  opts[idx].classList.add('selected');
+  const isHidden=currentQ>=shuffled.length;
+  const q=isHidden?hiddenQ:shuffled[currentQ];
+  const val=q.opts[idx].v;
+
+  if(isHidden){
+    hiddenAnswer=val;
+    setTimeout(()=>finishQuiz(),400);
+    return;
+  }
+
+  scores[q.dim]=(scores[q.dim]||0)+val;
+
+  setTimeout(()=>{
+    currentQ++;
+    // Check hidden trigger: Sy2 both max (score=6)
+    if(currentQ===shuffled.length){
+      if(scores['Sy2']>=6){
+        hiddenTriggered=true;
+        renderQuestion();
+        return;
+      }
+      finishQuiz();
+      return;
+    }
+    renderQuestion();
+  },350);
+}
+
+function finishQuiz(){
+  showScreen('loading');
+  setTimeout(()=>showResult(),2800);
+}
+
+// ============================================================
+// MATCHING
+// ============================================================
+function calcLevel(s){
+  // min 2 max 6 per dim (2 questions each 1-3)
+  if(s<=3) return 1; // L
+  if(s<=4) return 2; // M
+  return 3; // H
+}
+
+function matchTypes(){
+  // TILT override
+  if(hiddenAnswer==='TILT') return [{code:'TILT',pct:95},{code:findBest().code,pct:findBest().pct}];
+
+  const userVec=DIMS.map(d=>calcLevel(scores[d]));
+  let results=[];
+  for(const[code,t]of Object.entries(TYPES)){
+    if(code==='TILT') continue;
+    let dist=0, exact=0;
+    t.v.forEach((v,i)=>{
+      dist+=(v-userVec[i])**2;
+      if(v===userVec[i]) exact++;
+    });
+    results.push({code,dist,exact});
+  }
+  results.sort((a,b)=>a.dist-b.dist||(b.exact-a.exact));
+  const best=results[0], second=results[1];
+  const maxDist=15*4; // 15 dims * max diff^2(4)
+  const pct=Math.round((1-best.dist/maxDist)*100);
+  const pct2=Math.round((1-second.dist/maxDist)*100);
+  return [{code:best.code,pct:Math.max(pct,55)},{code:second.code,pct:Math.max(pct2,40)}];
+}
+
+function findBest(){
+  const userVec=DIMS.map(d=>calcLevel(scores[d]));
+  let results=[];
+  for(const[code,t]of Object.entries(TYPES)){
+    if(code==='TILT') continue;
+    let dist=0;t.v.forEach((v,i)=>{dist+=(v-userVec[i])**2});
+    results.push({code,dist});
+  }
+  results.sort((a,b)=>a.dist-b.dist);
+  const maxDist=60;
+  return {code:results[0].code,pct:Math.max(Math.round((1-results[0].dist/maxDist)*100),45)};
+}
+
+// ============================================================
+// RADAR CHART (SVG)
+// ============================================================
+function radarSVG(){
+  const cx=190,cy=180,r=140;
+  const dims=DIMS;
+  const n=dims.length;
+  const angleStep=2*Math.PI/n;
+  const startAngle=-Math.PI/2;
+
+  function pt(i,ratio){
+    const a=startAngle+i*angleStep;
+    return [cx+r*ratio*Math.cos(a),cy+r*ratio*Math.sin(a)];
+  }
+
+  let svg=`<svg viewBox="0 0 380 370" xmlns="http://www.w3.org/2000/svg">`;
+  // Grid
+  [.33,.66,1].forEach(ratio=>{
+    let poly='';
+    for(let i=0;i<n;i++){const[x,y]=pt(i,ratio);poly+=`${x},${y} `}
+    svg+=`<polygon points="${poly}" fill="none" stroke="#2a2a35" stroke-width="1"/>`;
+  });
+  // Axes
+  for(let i=0;i<n;i++){
+    const[x,y]=pt(i,1);
+    svg+=`<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="#2a2a35" stroke-width="1"/>`;
+  }
+  // Data
+  const maxScore=6;
+  let dataPoly='';
+  for(let i=0;i<n;i++){
+    const ratio=(scores[dims[i]]||2)/maxScore;
+    const[x,y]=pt(i,ratio);
+    dataPoly+=`${x},${y} `;
+  }
+  svg+=`<polygon points="${dataPoly}" fill="rgba(212,168,67,0.15)" stroke="#d4a843" stroke-width="2"/>`;
+  // Dots & labels
+  for(let i=0;i<n;i++){
+    const ratio=(scores[dims[i]]||2)/maxScore;
+    const[dx,dy]=pt(i,ratio);
+    svg+=`<circle cx="${dx}" cy="${dy}" r="3.5" fill="#d4a843"/>`;
+    const[lx,ly]=pt(i,1.18);
+    const anchor=lx<cx-20?'end':lx>cx+20?'start':'middle';
+    svg+=`<text x="${lx}" y="${ly+4}" text-anchor="${anchor}" fill="#8a8a8e" font-size="11">${DIM_NAMES[dims[i]]}</text>`;
+  }
+  svg+=`</svg>`;
+  return svg;
+}
+
+// ============================================================
+// RESULT RENDER
+// ============================================================
+function showResult(){
+  const[main,sub]=matchTypes();
+  const t=TYPES[main.code];
+  const s=TYPES[sub.code];
+
+  let html=`
+  <div class="result-header">
+    <div class="result-badge">DBTI 测试结果</div>
+    <div class="result-type">${main.code}</div>
+    <div class="result-name">${t.name}</div>
+    <div class="result-match">匹配度 ${main.pct}%</div>
+  </div>
+  <div class="result-quote">${t.tag}</div>
+
+  <div class="section">
+    <div class="section-title"><span>📖</span> 你是谁</div>
+    <div class="desc-text"><p>${t.desc}</p></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title"><span>📍</span> 推荐位置</div>
+    <div class="pos-grid">`;
+  t.pos.forEach(([label,cls])=>{
+    const icon=cls==='good'?'✅':cls==='ok'?'⚠️':'❌';
+    html+=`<div class="pos-card ${cls}"><span class="pos-icon">${icon}</span>${label}</div>`;
+  });
+  html+=`</div></div>
+
+  <div class="section">
+    <div class="section-title"><span>🎯</span> 擅长的事</div>
+    <ul class="skill-list">`;
+  t.str.forEach(s=>{html+=`<li><span class="icon">⚡</span>${s}</li>`});
+  html+=`</ul></div>
+
+  <div class="section">
+    <div class="section-title"><span>💀</span> 不擅长的事</div>
+    <ul class="skill-list">`;
+  t.weak.forEach(w=>{html+=`<li><span class="icon">💢</span>${w}</li>`});
+  html+=`</ul></div>
+
+  <div class="section">
+    <div class="section-title"><span>📊</span> 15 维度分析</div>
+    <div class="radar-wrap">${radarSVG()}</div>
+    <div class="dim-details">`;
+  DIMS.forEach(d=>{
+    const raw=scores[d]||2;
+    const pct=Math.round((raw/6)*100);
+    const color=pct>70?'var(--gold)':pct>40?'var(--blue)':'var(--red)';
+    const levelLabel=raw<=3?DIM_LOW[d]:raw>=5?DIM_HIGH[d]:'中等';
+    html+=`<div class="dim-row">
+      <span class="dim-label">${DIM_NAMES[d]}</span>
+      <div class="dim-bar-bg"><div class="dim-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+      <span class="dim-val">${raw}</span>
+    </div>`;
+  });
+  html+=`</div></div>
+
+  <div class="section">
+    <div class="section-title"><span>🍺</span> 你的队友可能会说</div>
+    <div class="teammate-quote">`;
+  t.qt.forEach(q=>{
+    if(q.startsWith('你：')||q.startsWith('你:'))
+      html+=`<div><span class="speaker">你：</span>${q.replace(/^你[：:]/,'')}</div>`;
+    else if(q.startsWith('（'))
+      html+=`<div style="color:var(--text-dark);font-style:italic">${q}</div>`;
+    else
+      html+=`<div>${q}</div>`;
+  });
+  html+=`</div></div>
+
+  <div class="section">
+    <div class="section-title"><span>🎭</span> 你的隐藏面</div>
+    <div class="sub-type-card">
+      <div class="label">副类型 · 匹配度 ${sub.pct}%</div>
+      <div class="name">${sub.code} — ${s.name}</div>
+      <div class="tagline">${s.tag}</div>
+    </div>
+  </div>
+
+  <div class="restart-wrap">
+    <button class="btn-ghost" onclick="startQuiz()">重新测试</button>
+  </div>`;
+
+  document.getElementById('result').innerHTML=html;
+  showScreen('result');
+
+  // Animate dimension bars
+  setTimeout(()=>{
+    document.querySelectorAll('.dim-bar-fill').forEach(el=>{
+      el.style.width=el.style.width; // trigger reflow
+    });
+  },100);
+}
+</script>
+</body>
+</html>
