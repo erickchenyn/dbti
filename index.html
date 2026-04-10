@@ -127,7 +127,7 @@ a{color:var(--gold);text-decoration:none}
   <div class="logo-icon">⚔️</div>
   <h1>DBTI</h1>
   <p class="subtitle">Dota2 Behavioral Type Indicator<br>你是什么型的 Dota2 玩家？</p>
-  <p class="intro-meta">105 道题 · 10 分钟 · 20 种玩家类型</p>
+  <p class="intro-meta">25 道题 · 3 分钟 · 20 种玩家类型</p>
   <button class="btn btn-primary" onclick="startQuiz()">开始测试</button>
   <p class="intro-footer">仅供娱乐 · 不代表真实水平 · 别拿去喷队友</p>
 </div>
@@ -183,6 +183,7 @@ const MODELS = [
   ]},
 ];
 const QUESTIONS_PER_DIM = 7;
+const QUESTIONS_PER_MODEL = 5;
 const SCORE_RANGE = {min:1, max:3};
 const LEVEL_COUNT = 3;
 
@@ -193,8 +194,8 @@ const DIM_NAMES = Object.fromEntries(ALL_DIMS.map(d=>[d.id,d.name]));
 const DIM_LOW = Object.fromEntries(ALL_DIMS.map(d=>[d.id,d.low]));
 const DIM_HIGH = Object.fromEntries(ALL_DIMS.map(d=>[d.id,d.high]));
 const CATEGORIES = Object.fromEntries(MODELS.map(m=>[m.id,`${m.icon} ${m.name}`]));
-const DIM_SCORE_MIN = QUESTIONS_PER_DIM*SCORE_RANGE.min;
-const DIM_SCORE_MAX = QUESTIONS_PER_DIM*SCORE_RANGE.max;
+const DIM_SCORE_MIN = SCORE_RANGE.min;
+const DIM_SCORE_MAX = SCORE_RANGE.max;
 
 const questions = [
   // ============ St1 大局观 ============
@@ -575,9 +576,29 @@ const TYPES = {
 // ============================================================
 // STATE
 // ============================================================
-let shuffled=[], currentQ=0, scores={}, hiddenTriggered=false, hiddenAnswer=null, hiddenIdx=0;
+let shuffled=[], currentQ=0, scores={}, dimCount={}, hiddenTriggered=false, hiddenAnswer=null, hiddenIdx=0;
 
-function initScores(){scores={};DIMS.forEach(d=>scores[d]=0)}
+function initScores(){scores={};dimCount={};DIMS.forEach(d=>{scores[d]=0;dimCount[d]=0})}
+function dimAvg(d){return dimCount[d]?scores[d]/dimCount[d]:DIM_SCORE_MIN}
+
+function sampleQuestions(){
+  const sampled=[];
+  MODELS.forEach(m=>{
+    const dimIds=m.dims.map(d=>d.id);
+    const pool=questions.filter(q=>q.cat===m.id);
+    const picked=[];
+    dimIds.forEach(did=>{
+      const dimPool=pool.filter(q=>q.dim===did&&!picked.includes(q));
+      if(dimPool.length) picked.push(dimPool[Math.floor(Math.random()*dimPool.length)]);
+    });
+    const rest=pool.filter(q=>!picked.includes(q));
+    const shuffledRest=rest.sort(()=>Math.random()-.5);
+    const need=QUESTIONS_PER_MODEL-picked.length;
+    for(let i=0;i<need&&i<shuffledRest.length;i++) picked.push(shuffledRest[i]);
+    sampled.push(...picked);
+  });
+  return sampled.sort(()=>Math.random()-.5);
+}
 
 // ============================================================
 // SCREENS
@@ -590,7 +611,7 @@ function showScreen(id){
 
 function startQuiz(){
   initScores();
-  shuffled=[...questions].sort(()=>Math.random()-.5);
+  shuffled=sampleQuestions();
   currentQ=0;hiddenTriggered=false;hiddenAnswer=null;hiddenIdx=0;
   showScreen('quiz');
   renderQuestion();
@@ -635,12 +656,12 @@ function selectOption(idx){
   }
 
   scores[q.dim]=(scores[q.dim]||0)+val;
+  dimCount[q.dim]=(dimCount[q.dim]||0)+1;
 
   setTimeout(()=>{
     currentQ++;
-    // Check hidden trigger: Sy2 both max (score=6)
     if(currentQ===shuffled.length){
-      if(scores['Sy2']>=DIM_SCORE_MAX){
+      if(dimCount['Sy2']&&dimAvg('Sy2')>=DIM_SCORE_MAX){
         hiddenTriggered=true;
         renderQuestion();
         return;
@@ -669,7 +690,7 @@ function matchTypes(){
   // TILT override
   if(hiddenAnswer==='TILT') return [{code:'TILT',pct:95},{code:findBest().code,pct:findBest().pct}];
 
-  const userVec=DIMS.map(d=>calcLevel(scores[d]));
+  const userVec=DIMS.map(d=>calcLevel(dimAvg(d)));
   let results=[];
   for(const[code,t]of Object.entries(TYPES)){
     if(code==='TILT') continue;
@@ -689,7 +710,7 @@ function matchTypes(){
 }
 
 function findBest(){
-  const userVec=DIMS.map(d=>calcLevel(scores[d]));
+  const userVec=DIMS.map(d=>calcLevel(dimAvg(d)));
   let results=[];
   for(const[code,t]of Object.entries(TYPES)){
     if(code==='TILT') continue;
@@ -732,14 +753,14 @@ function radarSVG(){
   const maxScore=DIM_SCORE_MAX;
   let dataPoly='';
   for(let i=0;i<n;i++){
-    const ratio=(scores[dims[i]]||DIM_SCORE_MIN)/maxScore;
+    const ratio=dimAvg(dims[i])/maxScore;
     const[x,y]=pt(i,ratio);
     dataPoly+=`${x},${y} `;
   }
   svg+=`<polygon points="${dataPoly}" fill="rgba(212,168,67,0.15)" stroke="#d4a843" stroke-width="2"/>`;
   // Dots & labels
   for(let i=0;i<n;i++){
-    const ratio=(scores[dims[i]]||DIM_SCORE_MIN)/maxScore;
+    const ratio=dimAvg(dims[i])/maxScore;
     const[dx,dy]=pt(i,ratio);
     svg+=`<circle cx="${dx}" cy="${dy}" r="3.5" fill="#d4a843"/>`;
     const[lx,ly]=pt(i,1.18);
@@ -798,13 +819,13 @@ function showResult(){
     <div class="radar-wrap">${radarSVG()}</div>
     <div class="dim-details">`;
   DIMS.forEach(d=>{
-    const raw=scores[d]||DIM_SCORE_MIN;
-    const pct=Math.round((raw/DIM_SCORE_MAX)*100);
+    const avg=dimAvg(d);
+    const pct=Math.round((avg/DIM_SCORE_MAX)*100);
     const color=pct>70?'var(--gold)':pct>40?'var(--blue)':'var(--red)';
     html+=`<div class="dim-row">
       <span class="dim-label">${DIM_NAMES[d]}</span>
       <div class="dim-bar-bg"><div class="dim-bar-fill" style="width:${pct}%;background:${color}"></div></div>
-      <span class="dim-val">${raw}</span>
+      <span class="dim-val">${avg.toFixed(1)}</span>
     </div>`;
   });
   html+=`</div></div>
